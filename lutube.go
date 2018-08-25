@@ -18,6 +18,8 @@ type HomePage struct {
 	Error  bool
 }
 
+type RequestHandler func(request *http.Request) (string, interface{}, error)
+
 func loadVideo(id string) (*Video, error) {
 	filename := "./videos/" + id + "/videodata.txt"
 	videoData, err := ioutil.ReadFile(filename)
@@ -38,22 +40,6 @@ func getAvailableVideos() ([]string, error) {
 		availableVideos = append(availableVideos, f.Name())
 	}
 	return availableVideos, nil
-}
-
-func renderTemplate(writer http.ResponseWriter, templateFile string, data interface{}) {
-	templ, _ := template.ParseFiles(templateFile)
-	templ.Execute(writer, data)
-}
-
-func requestHandler(
-	writer http.ResponseWriter,
-	request *http.Request,
-	handler func(request *http.Request) (string, interface{}, error)) {
-	template, data, err := handler(request)
-	if err != nil {
-		http.Redirect(writer, request, "/?error=true", http.StatusSeeOther)
-	}
-	renderTemplate(writer, template, data)
 }
 
 func watchHandler(request *http.Request) (string, interface{}, error) {
@@ -79,13 +65,31 @@ func homeHandler(request *http.Request) (string, interface{}, error) {
 	return "home.html", homePage, nil
 }
 
+func renderTemplate(writer http.ResponseWriter, templateFile string, data interface{}) {
+	templ, _ := template.ParseFiles(templateFile)
+	templ.Execute(writer, data)
+}
+
+func requestHandler(
+	writer http.ResponseWriter,
+	request *http.Request,
+	handler RequestHandler) {
+	template, data, err := handler(request)
+	if err != nil {
+		http.Redirect(writer, request, "/?error=true", http.StatusSeeOther)
+	}
+	renderTemplate(writer, template, data)
+}
+
+func createRoute(path string, handler RequestHandler) {
+	http.HandleFunc(path, func(writer http.ResponseWriter, request *http.Request) {
+		requestHandler(writer, request, handler)
+	})
+}
+
 func main() {
-	http.HandleFunc("/watch/", func(writer http.ResponseWriter, request *http.Request) {
-		requestHandler(writer, request, watchHandler)
-	})
-	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		requestHandler(writer, request, homeHandler)
-	})
+	createRoute("/", homeHandler)
+	createRoute("/watch/", watchHandler)
 	http.Handle("/videos", http.FileServer(http.Dir(".")))
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
