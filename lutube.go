@@ -5,11 +5,17 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type Video struct {
 	Id    string
 	Title string
+}
+
+type HomePage struct {
+	Videos []string
+	Error  bool
 }
 
 func loadVideo(id string) (*Video, error) {
@@ -39,10 +45,13 @@ func renderTemplate(writer http.ResponseWriter, templateFile string, data interf
 	templ.Execute(writer, data)
 }
 
-func requestHandler(writer http.ResponseWriter, request *http.Request, handler func (request *http.Request) (string, interface{}, error) ) {
+func requestHandler(
+	writer http.ResponseWriter,
+	request *http.Request,
+	handler func(request *http.Request) (string, interface{}, error)) {
 	template, data, err := handler(request)
 	if err != nil {
-		http.Redirect(writer, request, "/", http.StatusNotFound)
+		http.Redirect(writer, request, "/?error=true", http.StatusSeeOther)
 	}
 	renderTemplate(writer, template, data)
 }
@@ -53,16 +62,27 @@ func watchHandler(request *http.Request) (string, interface{}, error) {
 	return "watch.html", video, err
 }
 
+func getPreviousError(request *http.Request) bool {
+	errParamArr := request.URL.Query()["error"]
+	errParam := strings.Join(errParamArr, "")
+	if errParam == "true" {
+		return true
+	}
+	return false
+}
+
 func homeHandler(request *http.Request) (string, interface{}, error) {
+	previousErr := getPreviousError(request)
 	videos, err := getAvailableVideos()
-	return "home.html", videos, err
+	homePage := HomePage{Videos: videos, Error: previousErr}
+	return "home.html", homePage, err
 }
 
 func main() {
-	http.HandleFunc("/watch/", func (writer http.ResponseWriter, request *http.Request) {
+	http.HandleFunc("/watch/", func(writer http.ResponseWriter, request *http.Request) {
 		requestHandler(writer, request, watchHandler)
 	})
-	http.HandleFunc("/", func (writer http.ResponseWriter, request *http.Request) {
+	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		requestHandler(writer, request, homeHandler)
 	})
 	http.Handle("/videos", http.FileServer(http.Dir(".")))

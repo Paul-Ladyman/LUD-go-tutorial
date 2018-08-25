@@ -1,8 +1,11 @@
+{{if .Error}}
+<h1 style="color:red">Unfortunately there was an error</h1>
+{{- end}}
 <h1>LU-Tube</h1>
 <p>Go example from Linux User and Developer Magazine</p>
 <h2>Videos</h2>
 <ul>
-  {{range $a := .}}
+  {{range $a := .Videos}}
     <li><a href="/watch/{{$a}}">{{$a}}</a></li>
   {{end}}
 </ul>
