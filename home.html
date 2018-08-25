@@ -3,9 +3,11 @@
 {{- end}}
 <h1>LU-Tube</h1>
 <p>Go example from Linux User and Developer Magazine</p>
+{{if .Videos}}
 <h2>Videos</h2>
 <ul>
   {{range $a := .Videos}}
     <li><a href="/watch/{{$a}}">{{$a}}</a></li>
   {{end}}
 </ul>
+{{- end}}

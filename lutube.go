@@ -74,8 +74,9 @@ func getPreviousError(request *http.Request) bool {
 func homeHandler(request *http.Request) (string, interface{}, error) {
 	previousErr := getPreviousError(request)
 	videos, err := getAvailableVideos()
-	homePage := HomePage{Videos: videos, Error: previousErr}
-	return "home.html", homePage, err
+	showErrorMessage := err != nil || previousErr
+	homePage := HomePage{Videos: videos, Error: showErrorMessage}
+	return "home.html", homePage, nil
 }
 
 func main() {
