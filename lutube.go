@@ -39,23 +39,32 @@ func renderTemplate(writer http.ResponseWriter, templateFile string, data interf
 	templ.Execute(writer, data)
 }
 
-func watchHandler(writer http.ResponseWriter, request *http.Request) {
-	id := request.URL.Path[len("/watch/"):]
-	video, err := loadVideo(id)
+func requestHandler(writer http.ResponseWriter, request *http.Request, handler func (request *http.Request) (string, interface{}, error) ) {
+	template, data, err := handler(request)
 	if err != nil {
 		http.Redirect(writer, request, "/", http.StatusNotFound)
 	}
-	renderTemplate(writer, "watch.html", video)
+	renderTemplate(writer, template, data)
 }
 
-func homeHandler(writer http.ResponseWriter, request *http.Request) {
-	videos, _ := getAvailableVideos()
-	renderTemplate(writer, "home.html", videos)
+func watchHandler(request *http.Request) (string, interface{}, error) {
+	id := request.URL.Path[len("/watch/"):]
+	video, err := loadVideo(id)
+	return "watch.html", video, err
+}
+
+func homeHandler(request *http.Request) (string, interface{}, error) {
+	videos, err := getAvailableVideos()
+	return "home.html", videos, err
 }
 
 func main() {
-	http.HandleFunc("/watch/", watchHandler)
-	http.HandleFunc("/", homeHandler)
+	http.HandleFunc("/watch/", func (writer http.ResponseWriter, request *http.Request) {
+		requestHandler(writer, request, watchHandler)
+	})
+	http.HandleFunc("/", func (writer http.ResponseWriter, request *http.Request) {
+		requestHandler(writer, request, homeHandler)
+	})
 	http.Handle("/videos", http.FileServer(http.Dir(".")))
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
